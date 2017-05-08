@@ -1,38 +1,55 @@
 import os, subprocess, time, signal
+import numpy as np
 import gym
 from gym import error, spaces
 from gym import utils
 from gym.utils import seeding
-
-try:
-    import hfo_py
-except ImportError as e:
-    raise error.DependencyNotInstalled("{}. (HINT: you can install HFO dependencies with 'pip install gym[soccer].)'".format(e))
+from enum import Enum
 
 import logging
 logger = logging.getLogger(__name__)
 
-class SoccerEnv(gym.Env, utils.EzPickle):
-    metadata = {'render.modes': ['human']}
+class Grid(Enum):
+    BLOCK = -1
+    FREE = 0
+    START = 1
+    END = 2
+
+space = 0.8
+
+class AStarEnv(gym.Env):
 
     def __init__(self):
-        self.viewer = None
-        self.server_process = None
-        self.server_port = None
-        self.hfo_path = hfo_py.get_hfo_path()
-        self._configure_environment()
-        self.env = hfo_py.HFOEnvironment()
-        self.env.connectToServer(config_dir=hfo_py.get_config_path())
-        self.observation_space = spaces.Box(low=-1, high=1,
-                                            shape=(self.env.getStateSize()))
-        # Action space omits the Tackle/Catch actions, which are useful on defense
-        self.action_space = spaces.Tuple((spaces.Discrete(3),
-                                          spaces.Box(low=0, high=100, shape=1),
-                                          spaces.Box(low=-180, high=180, shape=1),
-                                          spaces.Box(low=-180, high=180, shape=1),
-                                          spaces.Box(low=0, high=100, shape=1),
-                                          spaces.Box(low=-180, high=180, shape=1)))
-        self.status = hfo_py.IN_GAME
+        ## b[w][h] , b[x][y]
+
+        # Create a randomly sized w x h grid of zeros
+        # randomly place a start (1) and an end (2) on the board
+        # randomly place obstacles on the grid (-1)
+        # implement A* to make a path to the end.
+        # Use A* to check if a solution exists.
+
+        self.w = np.random.randint(10) + 1
+        self.h = np.random.randint(10) + 1
+        self.states = self.w * self.h
+
+        values, probs = [Grid.FREE.value, Grid.BLOCK.value], [space, 1-space]
+        # start with 0-1 vals in all spaces, ration of free space to blocks
+        self.grid = np.random.choice(values, size=(self.w,self.h), p=probs)
+        while (True):
+            self.start = (np.random.randint(self.w),np.random.randint(self.h))
+            self.end = (np.random.randint(self.w),np.random.randint(self.h))
+            if (np.linalg.norm(self.end-self.start) > 5 and astar(self.grid, self.start, self.end)):
+                break
+
+        ## WIP
+
+
+
+
+        self.action_space = spaces.Discrete(4)
+        self.observation_space = spaces.Tuple((spaces.Discrete(self.states),
+                                          spaces.Box(low=-1, high=2, shape=(self.w,self.h)))
+
 
     def __del__(self):
         self.env.act(hfo_py.QUIT)
@@ -132,7 +149,8 @@ class SoccerEnv(gym.Env, utils.EzPickle):
             return 0
 
     def _reset(self):
-        """ Repeats NO-OP action until a new episode begins. """
+        # set the position as the start position.
+        # return the observation (position number, matrix of board)
         while self.status == hfo_py.IN_GAME:
             self.env.act(hfo_py.NOOP)
             self.status = self.env.step()
