@@ -24,6 +24,7 @@ Directions = {
     2: (1,0),
     3: (-1,0),
 }
+Inverted = {v: k for k, v in Directions.items()}
 
 space = 0.8 # amount of free space on board
 completion_reward = 1 # reward for completion
@@ -51,7 +52,9 @@ def astar(grid, start, end):
         if current == end:
             data = []
             while current in came_from:
-                data.append(current)
+                before = came_from[current]
+                action = (current[0]-before[0],current[1]-before[1])
+                data.append(Inverted[action])
                 current = came_from[current]
             return data
 
@@ -138,12 +141,16 @@ class AStarEnv(gym.Env):
         self.grid[self.player[0]][self.player[1]] = Grid["FREE"]
         self.grid[self.start[0]][self.start[1]] = Grid["PLAYER"]
         self.grid[self.end[0]][self.end[1]] = Grid["END"]
+        self.disp = np.copy(self.grid)
         self.player = self.start
         self.path = astar(self.grid, self.player, self.end)
 
     def _render(self, mode='human', close=False):
         if not close:
             display = np.copy(self.disp)
-            for x,y in self.path[1:]:
+            x,y = self.player
+            for d in self.path[1:]:
+                a,b = Directions[d]
+                x,y = x+a,y+b
                 display[x,y] = Grid["PATH"]
             print(display)
