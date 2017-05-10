@@ -14,6 +14,8 @@ Grid = {
     "FREE": 0,
     "PLAYER": 1,
     "END": 2,
+    "TRAIL": 3,
+    "PATH": 4
 }
 
 Directions = {
@@ -101,9 +103,10 @@ class AStarEnv(gym.Env):
             self.path = astar(self.grid, self.start, self.end)
             self.player = self.start
 
-            if self.path and np.linalg.norm(self.end-self.start) > 5:
+            if self.path and len(self.path) > 10:
                 self.grid[self.start[0]][self.start[1]] = Grid["PLAYER"]
                 self.grid[self.end[0]][self.end[1]] = Grid["END"]
+                self.disp = np.copy(self.grid)
                 return
 
     def _step(self, action):
@@ -120,9 +123,11 @@ class AStarEnv(gym.Env):
         direction = Directions[action]
         x = self.player[0]+direction[0]
         y = self.player[1]+direction[1]
-        if (0 < x <= self.h) and (0 < y <= self.w) and self.grid[x][y] != Grid["BLOCK"]:
+        if (0 <= x <= self.h) and (0 <= y <= self.w) and self.grid[x][y] != Grid["BLOCK"]:
             self.grid[self.player[0]][self.player[1]] = Grid["FREE"]
+            self.disp[self.player[0]][self.player[1]] = Grid["TRAIL"]
             self.grid[x][y] = Grid["PLAYER"]
+            self.disp[x][y] = Grid["PLAYER"]
             self.player = np.array([x,y])
             self.path = astar(self.grid, self.player, self.end)
 
@@ -137,7 +142,8 @@ class AStarEnv(gym.Env):
         self.path = astar(self.grid, self.player, self.end)
 
     def _render(self, mode='human', close=False):
-        disp = np.copy(self.grid)
-        for x,y in self.path[1:]:
-            disp[x,y] = 4
-        print(disp)
+        if not close:
+            display = np.copy(self.disp)
+            for x,y in self.path[1:]:
+                display[x,y] = Grid["PATH"]
+            print(display)
