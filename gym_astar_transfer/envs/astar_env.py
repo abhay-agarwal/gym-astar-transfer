@@ -29,56 +29,6 @@ Inverted = {v: k for k, v in Directions.items()}
 space = 0.8 # amount of free space on board
 reward = 1 # reward for matching A*
 
-def astar(grid, start, end):
-
-    start = tuple(start)
-    end = tuple(end)
-    neighbors = list(Directions.values())
-    def h(a,b):
-        return (b[0]-a[0]) ** 2 + (b[1]-a[1]) ** 2
-
-    close_set = set()
-    came_from = {}
-    gscore = {start:0}
-    fscore = {start:h(start,end)}
-    oheap = []
-
-    heappush(oheap, (fscore[start], start))
-    
-    while oheap:
-
-        current = heappop(oheap)[1]
-
-        if current == end:
-            data = []
-            while current in came_from:
-                before = came_from[current]
-                action = (current[0]-before[0],current[1]-before[1])
-                data.append(Inverted[action])
-                current = came_from[current]
-            return data
-
-        close_set.add(current)
-        for i, j in neighbors:
-            neighbor = (current[0] + i, current[1] + j)          
-            tentative_g_score = gscore[current] + h(current,neighbor)
-            if neighbor[0] < 0 or neighbor[0] >= grid.shape[0]:
-                continue
-            if neighbor[1] < 0 or neighbor[1] >= grid.shape[1]:
-                continue
-            if grid[neighbor[0]][neighbor[1]] == Grid["BLOCK"]:
-                continue
-            if neighbor in close_set and tentative_g_score >= gscore.get(neighbor, 0):
-                continue
-                
-            if  tentative_g_score < gscore.get(neighbor, 0) or neighbor not in [i[1]for i in oheap]:
-                came_from[neighbor] = current
-                gscore[neighbor] = tentative_g_score
-                fscore[neighbor] = tentative_g_score + h(end,neighbor)
-                heappush(oheap, (fscore[neighbor], neighbor))
-                
-    return False
-
 class AStarEnv(gym.Env):
 
     def __init__(self):
@@ -103,7 +53,7 @@ class AStarEnv(gym.Env):
         while (True):
             self.start = np.array([np.random.randint(self.h),np.random.randint(self.w)])
             self.end = np.array([np.random.randint(self.h),np.random.randint(self.w)])
-            self.path = astar(self.grid, self.start, self.end)
+            self.path = AStarEnv.astar(self.grid, self.start, self.end)
             self.player = self.start
 
             if self.path and len(self.path) > 10:
@@ -132,7 +82,7 @@ class AStarEnv(gym.Env):
             self.grid[x][y] = Grid["PLAYER"]
             self.disp[x][y] = Grid["PLAYER"]
             self.player = np.array([x,y])
-            self.path = astar(self.grid, self.player, self.end)
+            self.path = AStarEnv.astar(self.grid, self.player, self.end)
 
     def _reset(self):
         self.grid[self.player[0]][self.player[1]] = Grid["FREE"]
@@ -140,7 +90,7 @@ class AStarEnv(gym.Env):
         self.grid[self.end[0]][self.end[1]] = Grid["END"]
         self.disp = np.copy(self.grid)
         self.player = self.start
-        self.path = astar(self.grid, self.player, self.end)
+        self.path = AStarEnv.astar(self.grid, self.player, self.end)
         return self._get_state()
 
     def _render(self, mode='human', close=False):
@@ -152,3 +102,53 @@ class AStarEnv(gym.Env):
                 x,y = x+a,y+b
                 display[x,y] = Grid["PATH"]
             print(display)
+
+    def astar(grid, start, end):
+
+        start = tuple(start)
+        end = tuple(end)
+        neighbors = list(Directions.values())
+        def h(a,b):
+            return (b[0]-a[0]) ** 2 + (b[1]-a[1]) ** 2
+
+        close_set = set()
+        came_from = {}
+        gscore = {start:0}
+        fscore = {start:h(start,end)}
+        oheap = []
+
+        heappush(oheap, (fscore[start], start))
+        
+        while oheap:
+
+            current = heappop(oheap)[1]
+
+            if current == end:
+                data = []
+                while current in came_from:
+                    before = came_from[current]
+                    action = (current[0]-before[0],current[1]-before[1])
+                    data.append(Inverted[action])
+                    current = came_from[current]
+                return data
+
+            close_set.add(current)
+            for i, j in neighbors:
+                neighbor = (current[0] + i, current[1] + j)          
+                tentative_g_score = gscore[current] + h(current,neighbor)
+                if neighbor[0] < 0 or neighbor[0] >= grid.shape[0]:
+                    continue
+                if neighbor[1] < 0 or neighbor[1] >= grid.shape[1]:
+                    continue
+                if grid[neighbor[0]][neighbor[1]] == Grid["BLOCK"]:
+                    continue
+                if neighbor in close_set and tentative_g_score >= gscore.get(neighbor, 0):
+                    continue
+                    
+                if  tentative_g_score < gscore.get(neighbor, 0) or neighbor not in [i[1]for i in oheap]:
+                    came_from[neighbor] = current
+                    gscore[neighbor] = tentative_g_score
+                    fscore[neighbor] = tentative_g_score + h(end,neighbor)
+                    heappush(oheap, (fscore[neighbor], neighbor))
+                    
+        return False
