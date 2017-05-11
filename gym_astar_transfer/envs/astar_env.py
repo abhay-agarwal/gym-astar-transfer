@@ -144,6 +144,7 @@ class AStarEnv(gym.Env):
         self.disp = np.copy(self.grid)
         self.player = self.start
         self.path = astar(self.grid, self.player, self.end)
+        return self._get_state()
 
     def _render(self, mode='human', close=False):
         if not close:
