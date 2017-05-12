@@ -10,3 +10,11 @@ register(
     reward_threshold=1.0,
     nondeterministic = True,
 )
+
+register(
+    id='ThetaStarTransfer-v0',
+    entry_point='gym_thetastar_transfer.envs:AStarEnv',
+    timestep_limit=1000,
+    reward_threshold=1.0,
+    nondeterministic = True,
+)

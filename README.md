@@ -1,3 +1,3 @@
 # gym-astar-transfer
 
-Abhay's A* Environment for OpenAI
+Environments to test the transfer of A* and Theta* learning algorithms
