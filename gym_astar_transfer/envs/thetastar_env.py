@@ -11,149 +11,111 @@ import logging
 logger = logging.getLogger(__name__)
 
 Grid = {
-    "BLOCK": -1,
+    "BLOCK": 255,
+    "PLAYER": 170,
+    "END": 85,
     "FREE": 0,
-    "PLAYER": 1,
-    "END": 2,
-    "TRAIL": 3,
-    "PATH": 4
 }
 
 Directions = {
-    0: (0,1),
-    1: (0,-1),
-    2: (1,0),
-    3: (-1,0),
+    0: (7,0),
+    1: (5,5),
+    2: (0,7),
+    3: (-5,5),
+    4: (-7,0),
+    5: (-5,-5),
+    6: (0,-7),
+    7: (5,-5),
 }
+
 Inverted = {v: k for k, v in Directions.items()}
 
 space = 0.8 # amount of free space on board
-reward = 1 # reward for matching A*
+default_reward = 1 # reward for matching A*
+object_size = 5
+finish_dist = 7
 
 class ThetaStarEnv(gym.Env):
 
+    metadata = {"render.modes": ["human"]}
+    
     def __init__(self):
 
-        # [x] Create or load an 'environment' (picture) that is white in all usable areas, black otherwise
+        # [x] Create or load an 'environment' (picture) in greyscale
         # place two grey markers at start and end point (different grey, changes every session
         # Reward is 1/(steps^2)?
         # make start and end further away from each other as you get more training?
         # plot steps-to-distance and see if it goes down
 
-        self.map = cv2.imread("env.png")
+        filename = os.path.join(os.path.dirname(__file__), "env.png")
+        self.map = cv2.imread(filename, 0) # greyscale 8bit
+        self.action_space = spaces.Discrete(7)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(42,42,1))
 
-    #     self.w = 10
-    #     self.h = 10
-    #     self.states = self.w * self.h
+        self.max_dist = 100
+        self.min_dist = finish_dist
 
-    #     # start with 0-1 vals in all spaces, ration of free space to blocks
-    #     values, probs = [Grid["FREE"], Grid["BLOCK"]], [space, 1-space]
-    #     self.grid = np.random.choice(values, size=(self.h,self.w), p=probs)
+        # while (True):
+        #     self.start = np.random.randint(self.map.shape[0]-object_size, size=2)
+        #     self.player = self.start
+        #     self.end = np.random.randint(self.map.shape[0]-object_size, size=2)
+        #     if np.linalg.norm(self.end-self.start) <= self.max_dist:
+        #         if self.valid_position(self.start) and self.valid_position(self.end):
+        #             break
 
-    #     self.action_space = spaces.Discrete(4)
-    #     s = spaces.Discrete(self.states)
-    #     g = spaces.Box(low=-1, high=2, shape=(self.h,self.w))
-    #     self.observation_space = spaces.Tuple((s,g))
+    def _get_state(self):
+        frame = np.copy(self.map)
+        py,px = tuple(self.player)
+        ey,ex = tuple(self.end)
+        cv2.rectangle(frame, (px, py), (px+object_size, py+object_size), Grid["PLAYER"], cv2.FILLED)
+        cv2.rectangle(frame, (ex, ey), (ex+object_size, ey+object_size), Grid["END"], cv2.FILLED)
+        
+        # resize the state to a more manageable 42x42
+        frame = cv2.resize(frame, (80, 80))
+        frame = cv2.resize(frame, (42, 42))
+        frame = frame.astype(np.float32)
+        frame *= (1.0 / 255.0)
+        frame = np.reshape(frame, [42, 42, 1])
+        return frame
 
-    #     while (True):
-    #         self.start = np.array([np.random.randint(self.h),np.random.randint(self.w)])
-    #         self.end = np.array([np.random.randint(self.h),np.random.randint(self.w)])
-    #         self.path = AStarEnv.astar(self.grid, self.start, self.end)
-    #         self.player = self.start
+    def valid_position(self, pos):
+        # a "position" is the top-left pixel
+        x,y = pos
+        return not cv2.countNonZero(self.map[x:x+object_size,y:y+object_size])
 
-    #         if self.path and len(self.path) > 10:
-    #             self.grid[self.start[0]][self.start[1]] = Grid["PLAYER"]
-    #             self.grid[self.end[0]][self.end[1]] = Grid["END"]
-    #             self.disp = np.copy(self.grid)
-    #             return
+    def _step(self, action):
+        self._take_action(action)
+        ob = self._get_state()
+        episode_over = np.linalg.norm(self.end-self.player) <= finish_dist
+        reward = default_reward if episode_over else 0
+        return ob, reward, episode_over, {}
 
-    # def _step(self, action):
-    #     reward = action == self.path[-1]
-    #     self._take_action(action)
-    #     ob = (self._get_state(), self.grid)
-    #     episode_over = np.array_equal(self.player, self.end)
-    #     return ob, reward, episode_over, self.path
+    def _take_action(self, action):
+        direction = Directions[action]
+        x,y = self.player[0]+direction[0], self.player[1]+direction[1]
+        h,w = self.map.shape
+        if (0 <= x <= h) and (0 <= y <= w) and self.valid_position((x,y)):
+            self.player = np.array([x,y])
 
-    # def _get_state(self):
-    #     return self.player[0] * 10 + self.player[1]
+    def _reset(self):
 
-    # def _take_action(self, action):
-    #     direction = Directions[action]
-    #     x = self.player[0]+direction[0]
-    #     y = self.player[1]+direction[1]
-    #     if (0 <= x <= self.h) and (0 <= y <= self.w) and self.grid[x][y] != Grid["BLOCK"]:
-    #         self.grid[self.player[0]][self.player[1]] = Grid["FREE"]
-    #         self.disp[self.player[0]][self.player[1]] = Grid["TRAIL"]
-    #         self.grid[x][y] = Grid["PLAYER"]
-    #         self.disp[x][y] = Grid["PLAYER"]
-    #         self.player = np.array([x,y])
-    #         self.path = AStarEnv.astar(self.grid, self.player, self.end)
+        while (True):
+            self.start = np.random.randint(self.map.shape[0]-object_size, size=2)
+            self.player = self.start
+            self.end = np.random.randint(self.map.shape[0]-object_size, size=2)
+            if self.min_dist < np.linalg.norm(self.end-self.start) <= self.max_dist:
+                if self.valid_position(self.start) and self.valid_position(self.end):
+                    break
 
-    # def _reset(self):
-    #     self.grid[self.player[0]][self.player[1]] = Grid["FREE"]
-    #     self.grid[self.start[0]][self.start[1]] = Grid["PLAYER"]
-    #     self.grid[self.end[0]][self.end[1]] = Grid["END"]
-    #     self.disp = np.copy(self.grid)
-    #     self.player = self.start
-    #     self.path = AStarEnv.astar(self.grid, self.player, self.end)
-    #     return self._get_state()
+        return self._get_state()
 
-    # def _render(self, mode='human', close=False):
-    #     if not close:
-    #         display = np.copy(self.disp)
-    #         x,y = self.player
-    #         for d in reversed(self.path[1:]):
-    #             a,b = Directions[d]
-    #             x,y = x+a,y+b
-    #             display[x,y] = Grid["PATH"]
-    #         print(display)
+    def increase_difficulty(self, inc=10):
+        self.max_dist = min(self.max_dist + inc, 200)
+        self.min_dist = max(self.min_dist, self.max_dist - 50)
 
-    # def astar(grid, start, end):
-
-    #     start = tuple(start)
-    #     end = tuple(end)
-    #     neighbors = list(Directions.values())
-    #     def h(a,b):
-    #         return (b[0]-a[0]) ** 2 + (b[1]-a[1]) ** 2
-
-    #     close_set = set()
-    #     came_from = {}
-    #     gscore = {start:0}
-    #     fscore = {start:h(start,end)}
-    #     oheap = []
-
-    #     heappush(oheap, (fscore[start], start))
-
-    #     while oheap:
-
-    #         current = heappop(oheap)[1]
-
-    #         if current == end:
-    #             data = []
-    #             while current in came_from:
-    #                 before = came_from[current]
-    #                 action = (current[0]-before[0],current[1]-before[1])
-    #                 data.append(Inverted[action])
-    #                 current = came_from[current]
-    #             return data
-
-    #         close_set.add(current)
-    #         for i, j in neighbors:
-    #             neighbor = (current[0] + i, current[1] + j)
-    #             tentative_g_score = gscore[current] + h(current,neighbor)
-    #             if neighbor[0] < 0 or neighbor[0] >= grid.shape[0]:
-    #                 continue
-    #             if neighbor[1] < 0 or neighbor[1] >= grid.shape[1]:
-    #                 continue
-    #             if grid[neighbor[0]][neighbor[1]] == Grid["BLOCK"]:
-    #                 continue
-    #             if neighbor in close_set and tentative_g_score >= gscore.get(neighbor, 0):
-    #                 continue
-
-    #             if  tentative_g_score < gscore.get(neighbor, 0) or neighbor not in [i[1]for i in oheap]:
-    #                 came_from[neighbor] = current
-    #                 gscore[neighbor] = tentative_g_score
-    #                 fscore[neighbor] = tentative_g_score + h(end,neighbor)
-    #                 heappush(oheap, (fscore[neighbor], neighbor))
-
-    #     return False
+    def _render(self, mode='human', close=False):
+        if not close:
+            cv2.imshow("Theta Star", self._get_state())
+            cv2.waitKey(5)
+        else:
+            cv2.destroyAllWindows()

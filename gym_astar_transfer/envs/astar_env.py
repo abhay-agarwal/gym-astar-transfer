@@ -67,7 +67,7 @@ class AStarEnv(gym.Env):
         self._take_action(action)
         ob = (self._get_state(), self.grid)
         episode_over = np.array_equal(self.player, self.end)
-        return ob, reward, episode_over, self.path
+        return ob, reward, episode_over, {"path":self.path}
 
     def _get_state(self):
         return self.player[0] * 10 + self.player[1]
