@@ -30,10 +30,10 @@ Directions = {
 
 Inverted = {v: k for k, v in Directions.items()}
 
-space = 0.8 # amount of free space on board
 default_reward = 1 # reward for matching A*
 object_size = 5
 finish_dist = 7
+max_timesteps = 9
 
 class ThetaStarEnv(gym.Env):
 
@@ -52,7 +52,7 @@ class ThetaStarEnv(gym.Env):
         self.action_space = spaces.Discrete(7)
         self.observation_space = spaces.Box(low=0, high=255, shape=(42,42,1))
 
-        self.max_dist = 100
+        self.max_dist = 12
         self.min_dist = finish_dist
 
         # while (True):
@@ -84,10 +84,11 @@ class ThetaStarEnv(gym.Env):
         return not cv2.countNonZero(self.map[x:x+object_size,y:y+object_size])
 
     def _step(self, action):
+        self.steps += 1
         self._take_action(action)
         ob = self._get_state()
-        episode_over = np.linalg.norm(self.end-self.player) <= finish_dist
-        reward = default_reward if episode_over else 0
+        reward = default_reward if np.linalg.norm(self.end-self.player) < finish_dist else 0
+        episode_over = reward > 0 or self.steps >= max_timesteps
         return ob, reward, episode_over, {}
 
     def _take_action(self, action):
@@ -98,6 +99,7 @@ class ThetaStarEnv(gym.Env):
             self.player = np.array([x,y])
 
     def _reset(self):
+        self.steps = 0
 
         while (True):
             self.start = np.random.randint(self.map.shape[0]-object_size, size=2)
