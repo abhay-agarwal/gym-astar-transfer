@@ -33,8 +33,8 @@ Inverted = {v: k for k, v in Directions.items()}
 default_reward = 1 # reward for matching A*
 object_size = 5
 finish_dist = 7
-episodes_before_harder = 1000
-episodes_before_longer = 1000
+episodes_before_harder = 2000
+episodes_before_longer = 2000
 
 class ThetaStarEnv(gym.Env):
 
