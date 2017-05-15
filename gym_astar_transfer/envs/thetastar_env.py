@@ -33,13 +33,16 @@ Inverted = {v: k for k, v in Directions.items()}
 default_reward = 1 # reward for matching A*
 object_size = 5
 finish_dist = 7
-max_timesteps = 9
+episodes_before_harder = 1000
+episodes_before_longer = 1000
 
 class ThetaStarEnv(gym.Env):
 
     metadata = {"render.modes": ["human"]}
     
     def __init__(self):
+
+        self.total_episodes = 0
 
         # [x] Create or load an 'environment' (picture) in greyscale
         # place two grey markers at start and end point (different grey, changes every session
@@ -54,6 +57,8 @@ class ThetaStarEnv(gym.Env):
 
         self.max_dist = 12
         self.min_dist = finish_dist
+
+        self.max_timesteps = 9
 
         # while (True):
         #     self.start = np.random.randint(self.map.shape[0]-object_size, size=2)
@@ -88,7 +93,7 @@ class ThetaStarEnv(gym.Env):
         self._take_action(action)
         ob = self._get_state()
         reward = default_reward if np.linalg.norm(self.end-self.player) < finish_dist else 0
-        episode_over = reward > 0 or self.steps >= max_timesteps
+        episode_over = reward > 0 or self.steps >= self.max_timesteps
         return ob, reward, episode_over, {}
 
     def _take_action(self, action):
@@ -100,6 +105,12 @@ class ThetaStarEnv(gym.Env):
 
     def _reset(self):
         self.steps = 0
+        self.total_episodes += 1
+        if self.total_episodes % episodes_before_harder == 0:
+            self.increase_difficulty(inc=1)
+
+        if self.total_episodes % episodes_before_longer == 0:
+            self.increase_episode_length(inc=1)
 
         while (True):
             self.start = np.random.randint(self.map.shape[0]-object_size, size=2)
@@ -113,7 +124,10 @@ class ThetaStarEnv(gym.Env):
 
     def increase_difficulty(self, inc=10):
         self.max_dist = min(self.max_dist + inc, 200)
-        self.min_dist = max(self.min_dist, self.max_dist - 50)
+        # self.min_dist = max(self.min_dist, self.max_dist - 50)
+
+    def increase_episode_length(self, inc=10):
+        self.max_timesteps = min(self.max_timesteps + inc, 99)
 
     def _render(self, mode='human', close=False):
         if not close:
