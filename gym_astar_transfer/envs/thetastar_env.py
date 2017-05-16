@@ -33,12 +33,12 @@ Inverted = {v: k for k, v in Directions.items()}
 default_reward = 1 # reward for matching A*
 object_size = 5
 finish_dist = 7
-episodes_before_harder = 2000
-episodes_before_longer = 2000
+episodes_before_harder = 10000
+episodes_before_longer = 10000
 
 class ThetaStarEnv(gym.Env):
 
-    metadata = {"render.modes": ["human"]}
+    metadata = {"render.modes": ["human","rgb_array"]}
     
     def __init__(self):
 
@@ -55,10 +55,10 @@ class ThetaStarEnv(gym.Env):
         self.action_space = spaces.Discrete(7)
         self.observation_space = spaces.Box(low=0, high=255, shape=(42,42,1))
 
-        self.max_dist = 12
+        self.max_dist = 100
         self.min_dist = finish_dist
 
-        self.max_timesteps = 9
+        self.max_timesteps = 99
 
         # while (True):
         #     self.start = np.random.randint(self.map.shape[0]-object_size, size=2)
@@ -68,13 +68,15 @@ class ThetaStarEnv(gym.Env):
         #         if self.valid_position(self.start) and self.valid_position(self.end):
         #             break
 
-    def _get_state(self):
+    def _get_state(self, raw=False):
         frame = np.copy(self.map)
         py,px = tuple(self.player)
         ey,ex = tuple(self.end)
         cv2.rectangle(frame, (px, py), (px+object_size, py+object_size), Grid["PLAYER"], cv2.FILLED)
         cv2.rectangle(frame, (ex, ey), (ex+object_size, ey+object_size), Grid["END"], cv2.FILLED)
         
+        if raw:
+            return frame
         # resize the state to a more manageable 42x42
         frame = cv2.resize(frame, (80, 80))
         frame = cv2.resize(frame, (42, 42))
@@ -100,17 +102,17 @@ class ThetaStarEnv(gym.Env):
         direction = Directions[action]
         x,y = self.player[0]+direction[0], self.player[1]+direction[1]
         h,w = self.map.shape
-        if (0 <= x <= h) and (0 <= y <= w) and self.valid_position((x,y)):
+        if (0 <= x <= (h - object_size)) and (0 <= y <= (w - object_size) and self.valid_position((x,y)):
             self.player = np.array([x,y])
 
     def _reset(self):
         self.steps = 0
         self.total_episodes += 1
         if self.total_episodes % episodes_before_harder == 0:
-            self.increase_difficulty(inc=1)
+            self.increase_difficulty(inc=5)
 
         if self.total_episodes % episodes_before_longer == 0:
-            self.increase_episode_length(inc=1)
+            self.increase_episode_length(inc=5)
 
         while (True):
             self.start = np.random.randint(self.map.shape[0]-object_size, size=2)
@@ -131,7 +133,11 @@ class ThetaStarEnv(gym.Env):
 
     def _render(self, mode='human', close=False):
         if not close:
-            cv2.imshow("Theta Star", self._get_state())
+            img = self._get_state(raw=True)
+            if mode == "rgb_array":
+                img = np.reshape(img, [img.shape[0],img.shape[1],1])
+                return np.concatenate((img,img,img), axis=2)
+            cv2.imshow("Theta Star", img)
             cv2.waitKey(5)
         else:
             cv2.destroyAllWindows()
