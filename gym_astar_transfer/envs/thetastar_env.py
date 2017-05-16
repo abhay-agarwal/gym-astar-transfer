@@ -102,7 +102,7 @@ class ThetaStarEnv(gym.Env):
         direction = Directions[action]
         x,y = self.player[0]+direction[0], self.player[1]+direction[1]
         h,w = self.map.shape
-        if (0 <= x <= (h - object_size)) and (0 <= y <= (w - object_size) and self.valid_position((x,y)):
+        if (0 <= x <= (h - object_size)) and (0 <= y <= (w - object_size)) and self.valid_position((x,y)):
             self.player = np.array([x,y])
 
     def _reset(self):
