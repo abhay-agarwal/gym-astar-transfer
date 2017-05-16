@@ -137,7 +137,5 @@ class ThetaStarEnv(gym.Env):
             if mode == "rgb_array":
                 img = np.reshape(img, [img.shape[0],img.shape[1],1])
                 return np.concatenate((img,img,img), axis=2)
-            cv2.imshow("Theta Star", img)
-            cv2.waitKey(5)
-        else:
-            cv2.destroyAllWindows()
+            else:
+                return img
