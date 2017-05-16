@@ -30,11 +30,11 @@ Directions = {
 
 Inverted = {v: k for k, v in Directions.items()}
 
-default_reward = 1 # reward for matching A*
+default_reward = 100 # reward for matching A*
 object_size = 5
 finish_dist = 7
-episodes_before_harder = 10000
-episodes_before_longer = 10000
+# episodes_before_harder = 10000
+# episodes_before_longer = 10000
 
 class ThetaStarEnv(gym.Env):
 
@@ -92,9 +92,14 @@ class ThetaStarEnv(gym.Env):
 
     def _step(self, action):
         self.steps += 1
-        self._take_action(action)
+        valid_action = self._take_action(action)
         ob = self._get_state()
-        reward = default_reward if np.linalg.norm(self.end-self.player) < finish_dist else 0
+        if not valid_action:
+            reward = -1
+        elif np.linalg.norm(self.end-self.player) < finish_dist:
+            reward = default_reward
+        else:
+            reward = 0
         episode_over = reward > 0 or self.steps >= self.max_timesteps
         return ob, reward, episode_over, {}
 
@@ -104,15 +109,18 @@ class ThetaStarEnv(gym.Env):
         h,w = self.map.shape
         if (0 <= x <= (h - object_size)) and (0 <= y <= (w - object_size)) and self.valid_position((x,y)):
             self.player = np.array([x,y])
+            return True
+        else:
+            return False
 
     def _reset(self):
         self.steps = 0
         self.total_episodes += 1
-        if self.total_episodes % episodes_before_harder == 0:
-            self.increase_difficulty(inc=5)
+        # if self.total_episodes % episodes_before_harder == 0:
+        #     self.increase_difficulty(inc=5)
 
-        if self.total_episodes % episodes_before_longer == 0:
-            self.increase_episode_length(inc=5)
+        # if self.total_episodes % episodes_before_longer == 0:
+        #     self.increase_episode_length(inc=5)
 
         while (True):
             self.start = np.random.randint(self.map.shape[0]-object_size, size=2)
